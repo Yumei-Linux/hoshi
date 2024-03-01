@@ -1,24 +1,56 @@
 const std = @import("std");
+const clap = @import("clap");
+
+const Setup = @import("./commands/setup.zig");
+const Grab = @import("./commands/grab.zig");
+
+const debug = std.debug;
+const io = std.io;
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const params = comptime clap.parseParamsComptime(
+        \\-h, --help                        Displays this message and exit
+        \\-s, --setup                       Perform a new scaffolding of the hoshi formulas repository
+        \\-c, --clean                       Clean the last formulas repository archive before re cloning it
+        \\-g, --grab <str>...               Build from source and install the desired packages
+        \\
+    );
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var diag = clap.Diagnostic{};
 
-    try bw.flush(); // don't forget to flush!
-}
+    var res = clap.parse(clap.Help, &params, clap.parsers.default, .{
+        .diagnostic = &diag,
+        .allocator = gpa.allocator(),
+    }) catch |err| {
+        diag.report(io.getStdErr().writer(), err) catch {};
+        std.process.exit(1);
+        return err;
+    };
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    defer res.deinit();
+
+    var stdout = io.getStdOut().writer();
+    var stderr = io.getStdErr().writer();
+
+    if (res.args.help != 0) {
+        try stdout.print("usage: ", .{});
+        try clap.usage(stderr, clap.Help, &params);
+        try stdout.print("\n\n", .{});
+        return clap.help(io.getStdErr().writer(), clap.Help, &params, .{});
+    }
+
+    if (res.args.setup != 0) {
+        Setup.run(gpa.allocator(), res.args.clean != 0) catch |err| {
+            std.debug.print("Cannot setup hoshi formulas: {s}\n", .{@errorName(err)});
+        };
+    }
+
+    if (res.args.grab.len > 0) {
+        var grab = try Grab.new(gpa.allocator(), &res.args.grab);
+        defer grab.deinit();
+        try grab.run();
+    }
 }
