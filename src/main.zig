@@ -7,6 +7,14 @@ const Grab = @import("./commands/grab.zig");
 const debug = std.debug;
 const io = std.io;
 
+const PrivilegesErrors = error{NotAdmin};
+
+fn checkPrivileges() PrivilegesErrors!void {
+    if (std.os.linux.geteuid() != 0) {
+        return PrivilegesErrors.NotAdmin;
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -41,6 +49,17 @@ pub fn main() !void {
         try stdout.print("\n\n", .{});
         return clap.help(io.getStdErr().writer(), clap.Help, &params, .{});
     }
+
+    // NOTE: one can call --help without root access though.
+    checkPrivileges() catch |err| {
+        switch (err) {
+            PrivilegesErrors.NotAdmin => {
+                try stderr.print("hoshi needs root rights to work properly!\n", .{});
+                std.process.exit(1);
+                return err;
+            },
+        }
+    };
 
     if (res.args.setup != 0) {
         Setup.run(gpa.allocator(), res.args.clean != 0) catch |err| {

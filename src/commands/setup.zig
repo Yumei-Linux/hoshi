@@ -33,8 +33,9 @@ fn cleanWorkdir() !void {
 }
 
 pub fn run(allocator: std.mem.Allocator, clean: bool) !void {
-    if (clean)
+    if (clean) {
         try cleanWorkdir();
+    }
 
     const required_folders = [_][]const u8{ "/var/lib/hoshi", "/var/lib/hoshi/debug-rootfs", "/var/lib/hoshi/packages" };
 
