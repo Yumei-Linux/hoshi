@@ -42,13 +42,12 @@ fn grab(self: *Self, pkgid: []const u8) !void {
 
     const metadata = parsed_metadata.value;
 
-    // recursively installing dependencies first
     if (metadata.depends) |depends| {
         for (depends) |dep| {
             var dep_package = try Package.new(self.allocator, dep);
+
             defer dep_package.deinit();
 
-            // skip this dependency if it's already installed
             if (try dep_package.isInstalled()) {
                 continue;
             }
