@@ -5,6 +5,7 @@ const Setup = @import("./commands/setup.zig");
 const Grab = @import("./commands/grab.zig");
 const LocalBuilder = @import("./commands/build.zig");
 const PackageImporter = @import("./commands/package_importer.zig");
+const PackageDelete = @import("./commands/delete.zig");
 
 const debug = std.debug;
 const io = std.io;
@@ -27,6 +28,7 @@ pub fn main() !void {
         \\-c, --clean                       Clean the last formulas repository archive before re cloning it
         \\-g, --grab <str>...               Build from source and install the desired packages
         \\-b, --build <str>...              Build the specified packages locally
+        \\-d, --delete <str>...             Remove the specified packages if they're all installed
         \\-I, --import <str>...             Import a given .hoshi file into the hoshi packages registry
         \\-r, --rootfs <str>                The root filesystem where the packages should get merged at
         \\
@@ -88,5 +90,11 @@ pub fn main() !void {
         var package_importer = try PackageImporter.new(gpa.allocator(), &res.args.import, &res.args.rootfs);
         defer package_importer.deinit();
         try package_importer.run();
+    }
+
+    if (res.args.delete.len > 0) {
+        var package_delete = try PackageDelete.new(gpa.allocator(), &res.args.delete, &res.args.rootfs);
+        defer package_delete.deinit();
+        try package_delete.run();
     }
 }

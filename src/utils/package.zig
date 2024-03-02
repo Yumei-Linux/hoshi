@@ -174,6 +174,56 @@ pub fn startBuild(self: *Self) !void {
     try stdout.print("\n[mv]: " ++ dist_dirname ++ "/{s} -> " ++ packages_dirname ++ "/{s}\n", .{ pkgfilename, pkgfilename });
 }
 
+pub const PackageExtractionInfo = struct {
+    hoshi_filepath: []const u8,
+    dirname: []const u8,
+    allocator: std.mem.Allocator,
+
+    pub fn fromPackage(package: *Self) !*PackageExtractionInfo {
+        var instance = try package.allocator.create(PackageExtractionInfo);
+        var ids = try Ids.fromPkgId(package.allocator, package.name);
+        defer ids.deinit();
+        instance.allocator = package.allocator;
+        try instance.getPaths(&ids);
+        return instance;
+    }
+
+    pub fn performExtraction(self: *PackageExtractionInfo) !void {
+        _ = try fs.xmkdir(self.dirname);
+        var extract_argv = [_][]const u8{ "tar", "xpf", self.hoshi_filepath, "--strip-components=1", "-C", self.dirname };
+        try cmd.exec(self.allocator, &extract_argv);
+    }
+
+    pub fn cleanupExtraction(self: *PackageExtractionInfo) !void {
+        std.fs.deleteTreeAbsolute(self.dirname) catch |err| {
+            try stderr.print("cannot cleanup the extraction results for package at {s}: {s}\n", .{ self.hoshi_filepath, self.dirname });
+            std.process.exit(1);
+            return err;
+        };
+    }
+
+    fn getPaths(self: *PackageExtractionInfo, ids: *Ids) !void {
+        if (ids.pkgname == null or ids.pkgfilename == null) {
+            try stderr.print("getPaths(): cannot extract package filenames!\n", .{});
+            std.process.exit(1);
+        }
+
+        // at this point this should be ok to be done
+        const pkgname = ids.pkgname.?;
+        const pkgfilename = ids.pkgfilename.?;
+
+        // set the new data.
+        self.hoshi_filepath = try std.fmt.allocPrint(self.allocator, packages_dirname ++ "/{s}", .{pkgfilename});
+        self.dirname = try std.fmt.allocPrint(self.allocator, packages_dirname ++ "/{s}", .{pkgname});
+    }
+
+    pub fn deinit(self: *PackageExtractionInfo) void {
+        self.allocator.free(self.hoshi_filepath);
+        self.allocator.free(self.dirname);
+        self.allocator.destroy(self);
+    }
+};
+
 pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
     try stdout.print("\nMerging package {s} into {s}\n\n", .{ self.name, rootfs });
 
@@ -197,7 +247,7 @@ pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
         self.allocator.free(pkg_extracted_dirname);
     }
 
-    // extracting the .hoshi file
+    // TODO: Use the PackageExtractionInfo struct to handle this
     _ = try fs.xmkdir(pkg_extracted_dirname);
 
     var extract_argv = [_][]const u8{ "tar", "xpf", pkg_filepath, "--strip-components=1", "-C", pkg_extracted_dirname };
@@ -284,6 +334,16 @@ pub fn isInstalled(self: *Self) !bool {
     }
 
     return false;
+}
+
+pub fn isValidPkgId(self: *Self) !bool {
+    var package_dirname = try std.fmt.allocPrint(self.allocator, workdir ++ "/hoshi-formulas/{s}", .{self.name});
+    var package_dir = std.fs.openDirAbsolute(package_dirname, .{}) catch return false;
+
+    defer self.allocator.free(package_dirname);
+    defer package_dir.close();
+
+    return true;
 }
 
 pub fn deinit(self: *Self) void {
