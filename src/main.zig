@@ -24,6 +24,7 @@ pub fn main() !void {
         \\-s, --setup                       Perform a new scaffolding of the hoshi formulas repository
         \\-c, --clean                       Clean the last formulas repository archive before re cloning it
         \\-g, --grab <str>...               Build from source and install the desired packages
+        \\-r, --rootfs <str>                The root filesystem where the packages should get merged at
         \\
     );
 
@@ -68,7 +69,7 @@ pub fn main() !void {
     }
 
     if (res.args.grab.len > 0) {
-        var grab = try Grab.new(gpa.allocator(), &res.args.grab);
+        var grab = try Grab.new(gpa.allocator(), &res.args.grab, &res.args.rootfs);
         defer grab.deinit();
         try grab.run();
     }
