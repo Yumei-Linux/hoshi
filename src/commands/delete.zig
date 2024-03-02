@@ -57,13 +57,41 @@ fn removePackage(self: *Self, pkgid: []const u8) !void {
     var reader = files_registry.reader();
     var lines_buf: [1024]u8 = undefined;
 
-    // TODO: Perform the actual delete for the required package.
+    // collecting files
+    var files = std.ArrayList([]const u8).init(self.allocator);
+    var dirs = std.ArrayList([]const u8).init(self.allocator);
+
+    defer files.deinit();
+    defer dirs.deinit();
+
+    defer {
+        files.deinit();
+        dirs.deinit();
+    }
+
+    try stdout.print("Files to remove:\n", .{});
+
     while (try reader.readUntilDelimiterOrEof(lines_buf[0..], '\n')) |abstract_filename| {
         if (std.mem.eql(u8, abstract_filename, "")) continue;
         var filename = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ self.rootfs, abstract_filename });
         defer self.allocator.free(filename);
-        std.debug.print("filename -> {s}\n", .{filename});
+        std.debug.print("-- {s}\n", .{filename});
+        const stat = try std.fs.cwd().statFile(filename);
+        var copy = try std.fmt.allocPrint(self.allocator, "{s}", .{filename});
+        switch (stat.kind) {
+            .directory => try dirs.append(copy),
+            .file => try files.append(copy),
+            else => continue,
+        }
     }
+
+    std.debug.print("\n", .{});
+
+    for (files.items) |file|
+        std.debug.print("FILE {s}\n", .{file});
+
+    for (dirs.items) |dir|
+        std.debug.print("DIR {s}\n", .{dir});
 }
 
 pub fn run(self: *Self) !void {

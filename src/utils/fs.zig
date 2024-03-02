@@ -15,3 +15,18 @@ pub fn xmkdir(dirname: []const u8) !fs.Dir {
         break :retry std.fs.openDirAbsolute(dirname, .{}) catch unreachable;
     };
 }
+
+pub fn isEmptyDir(dirname: []const u8) !bool {
+    const dir = try std.fs.openIterableDirAbsolute(dirname, .{});
+    defer dir.close();
+
+    var walker = try dir.walk();
+    var result = true;
+
+    while (walker.next()) |_| {
+        result = false;
+        break;
+    }
+
+    return result;
+}
