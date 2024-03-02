@@ -223,11 +223,9 @@ pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
             }
         }
 
-        try stdout.print("++ {s} -> {s}\n", .{ file, dest_path });
-
-        // var merge_argv = [_][]const u8{ "install", "-D", real_path, dest_path };
         var merge_argv = [_][]const u8{ "bash", "-c", install_command };
 
+        try stdout.print("++ {s} -> {s}\n", .{ file, dest_path });
         try cmd.exec(self.allocator, &merge_argv);
     }
 }
