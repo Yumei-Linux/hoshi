@@ -100,7 +100,20 @@ pub const Ids = struct {
     // <packagename> + .hoshi -> <packagename>.hoshi (can be optional)
     pkgfilename: ?[]const u8,
 
-    // obtain a Ids instance by a `pkgid`.
+    // obtains a Ids instance by a given `pkgfilename`
+    pub fn fromPkgFilename(allocator: std.mem.Allocator, pkgfilename: []const u8) !Ids {
+        var pkgname = pkgfilename[0 .. pkgfilename.len - 6];
+        var pkgid = try std.fmt.allocPrint(allocator, "local/{s}", .{pkgname});
+
+        return Ids{
+            .allocator = allocator,
+            .pkgid = pkgid,
+            .pkgname = pkgname,
+            .pkgfilename = pkgfilename,
+        };
+    }
+
+    // obtains a Ids instance by a `pkgid`.
     pub fn fromPkgId(allocator: std.mem.Allocator, pkgid: []const u8) !Ids {
         var slashpos = std.mem.indexOfScalar(u8, pkgid, '/') orelse return error.InvalidGivenPkgId;
         var pkgname = pkgid[slashpos + 1 ..];

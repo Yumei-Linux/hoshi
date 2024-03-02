@@ -4,6 +4,7 @@ const clap = @import("clap");
 const Setup = @import("./commands/setup.zig");
 const Grab = @import("./commands/grab.zig");
 const LocalBuilder = @import("./commands/build.zig");
+const PackageImporter = @import("./commands/package_importer.zig");
 
 const debug = std.debug;
 const io = std.io;
@@ -81,5 +82,11 @@ pub fn main() !void {
         var builder = try LocalBuilder.new(gpa.allocator(), &res.args.build);
         defer builder.deinit();
         try builder.run();
+    }
+
+    if (res.args.import.len > 0) {
+        var package_importer = try PackageImporter.new(gpa.allocator(), &res.args.import, &res.args.rootfs);
+        defer package_importer.deinit();
+        try package_importer.run();
     }
 }
