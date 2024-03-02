@@ -35,9 +35,11 @@ fn doBuild(self: *Self, package: *Package) !void {
 
 fn grab(self: *Self, pkgid: []const u8) !void {
     var package = try Package.new(self.allocator, pkgid);
-    var parsed_metadata = try package.parseMetadata();
+    var metadata_path = try package.obtainMetadataPath();
+    var parsed_metadata = try package.parseMetadata(metadata_path);
 
     defer package.deinit();
+    defer self.allocator.free(metadata_path);
     defer parsed_metadata.deinit();
 
     const metadata = parsed_metadata.value;

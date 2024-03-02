@@ -24,7 +24,7 @@ pub fn new(allocator: std.mem.Allocator, name: []const u8) !*Self {
     return instance;
 }
 
-fn obtainMetadataPath(self: *Self) ![]const u8 {
+pub fn obtainMetadataPath(self: *Self) ![]const u8 {
     return std.fmt.allocPrint(self.allocator, "/var/lib/hoshi/hoshi-formulas/{s}/metadata.json", .{self.name}) catch |x| {
         return x;
     };
@@ -42,7 +42,10 @@ const ParsedMetadata = struct {
 };
 
 fn showMetadataInfo(self: *Self) !void {
-    var parsed = try self.parseMetadata();
+    var metadata_path = try self.obtainMetadataPath();
+    defer self.allocator.free(metadata_path);
+
+    var parsed = try self.parseMetadata(metadata_path);
     defer parsed.deinit();
 
     const metadata = parsed.value;
@@ -70,8 +73,13 @@ fn showMetadataInfo(self: *Self) !void {
 }
 
 fn performDownloads(self: *Self) !void {
-    var parsed = try self.parseMetadata();
-    defer parsed.deinit();
+    var metadata_path = try self.obtainMetadataPath();
+    var parsed = try self.parseMetadata(metadata_path);
+
+    defer {
+        self.allocator.free(metadata_path);
+        parsed.deinit();
+    }
 
     const metadata = parsed.value;
 
@@ -294,10 +302,7 @@ pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
     }
 }
 
-pub fn parseMetadata(self: *Self) !std.json.Parsed(ParsedMetadata) {
-    var metadata_path = try self.obtainMetadataPath();
-    defer self.allocator.free(metadata_path);
-
+pub fn parseMetadata(self: *Self, metadata_path: []const u8) !std.json.Parsed(ParsedMetadata) {
     var metadata_buf: [1024]u8 = undefined;
     var metadata_file = try std.fs.openFileAbsolute(metadata_path, .{});
     var metadata_bytes = try metadata_file.readAll(metadata_buf[0..]);

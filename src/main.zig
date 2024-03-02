@@ -6,6 +6,7 @@ const Grab = @import("./commands/grab.zig");
 const LocalBuilder = @import("./commands/build.zig");
 const PackageImporter = @import("./commands/package_importer.zig");
 const PackageDelete = @import("./commands/delete.zig");
+const PackageList = @import("./commands/list.zig");
 
 const debug = std.debug;
 const io = std.io;
@@ -20,7 +21,10 @@ fn checkPrivileges() PrivilegesErrors!void {
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+
+    defer if (gpa.deinit() == std.heap.Check.leak) {
+        std.debug.print("memory leaked!\n", .{});
+    };
 
     const params = comptime clap.parseParamsComptime(
         \\-h, --help                        Displays this message and exit
@@ -30,6 +34,7 @@ pub fn main() !void {
         \\-b, --build <str>...              Build the specified packages locally
         \\-d, --delete <str>...             Remove the specified packages if they're all installed
         \\-I, --import <str>...             Import a given .hoshi file into the hoshi packages registry
+        \\-l, --list                        List the installed packages
         \\-r, --rootfs <str>                The root filesystem where the packages should get merged at
         \\
     );
@@ -96,5 +101,13 @@ pub fn main() !void {
         var package_delete = try PackageDelete.new(gpa.allocator(), &res.args.delete, &res.args.rootfs);
         defer package_delete.deinit();
         try package_delete.run();
+    }
+
+    if (res.args.list != 0) {
+        PackageList.run(gpa.allocator()) catch |err| {
+            try stderr.print("Cannot list the installed packages!: {s}\n", .{@errorName(err)});
+            std.process.exit(1);
+            return err;
+        };
     }
 }
