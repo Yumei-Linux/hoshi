@@ -35,7 +35,31 @@ fn doBuild(self: *Self, package: *Package) !void {
 
 fn grab(self: *Self, pkgid: []const u8) !void {
     var package = try Package.new(self.allocator, pkgid);
+    var parsed_metadata = try package.parseMetadata();
+
     defer package.deinit();
+    defer parsed_metadata.deinit();
+
+    const metadata = parsed_metadata.value;
+
+    // recursively installing dependencies first
+    if (metadata.depends) |depends| {
+        for (depends) |dep| {
+            var dep_package = try Package.new(self.allocator, dep);
+            defer dep_package.deinit();
+
+            // skip this dependency if it's already installed
+            if (try dep_package.isInstalled()) {
+                continue;
+            }
+
+            self.grab(dep) catch |err| {
+                try stderr.print("Cannot install dependency {s} for package {s}: {s}\n", .{ dep, pkgid, @errorName(err) });
+                std.process.exit(1);
+                return err;
+            };
+        }
+    }
 
     self.doBuild(package) catch |err| {
         try stderr.print("Cannot run the build process for pkg {s}: {s}", .{ pkgid, @errorName(err) });
@@ -63,6 +87,8 @@ pub fn run(self: *Self) !void {
         try stderr.print("Sure, giving up!\n", .{});
         std.process.exit(0);
     }
+
+    try stdout.print("\n", .{});
 
     for (self.packages) |pkgid| {
         self.grab(pkgid) catch |x| {

@@ -208,6 +208,7 @@ pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
     var files_reader = files_registry.reader();
     var line: [1024]u8 = undefined;
 
+    // TODO: Stop relying on posix `install` script. We should make our own! :)
     while (try files_reader.readUntilDelimiterOrEof(&line, '\n')) |file| {
         if (file.len == 0) continue;
 
@@ -230,7 +231,7 @@ pub fn mergeAt(self: *Self, rootfs: []const u8) !void {
     }
 }
 
-fn parseMetadata(self: *Self) !std.json.Parsed(ParsedMetadata) {
+pub fn parseMetadata(self: *Self) !std.json.Parsed(ParsedMetadata) {
     var metadata_path = try self.obtainMetadataPath();
     defer self.allocator.free(metadata_path);
 
@@ -252,6 +253,24 @@ pub fn showResume(self: *Self) !void {
 
     try self.showMetadataInfo();
     try stdout.print("\n", .{});
+}
+
+pub fn isInstalled(self: *Self) !bool {
+    var packages_dir = try std.fs.openDirAbsolute(packages_dirname, .{});
+    var ids = try Ids.fromPkgId(self.allocator, self.name);
+
+    defer packages_dir.close();
+    defer ids.deinit();
+
+    if (ids.pkgfilename) |pkgfilename| {
+        if (packages_dir.statFile(pkgfilename)) |_| {
+            return true;
+        } else |_| {
+            return false;
+        }
+    }
+
+    return false;
 }
 
 pub fn deinit(self: *Self) void {
