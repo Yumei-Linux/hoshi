@@ -10,9 +10,9 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
 // paths that will serve as utility.
-const workdir = "/var/lib/hoshi";
-const dist_dirname = workdir ++ "/hoshi-formulas/dist";
-const packages_dirname = workdir ++ "/packages";
+pub const workdir = "/var/lib/hoshi";
+pub const dist_dirname = workdir ++ "/hoshi-formulas/dist";
+pub const packages_dirname = workdir ++ "/packages";
 
 allocator: std.mem.Allocator,
 name: []const u8,

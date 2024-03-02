@@ -3,6 +3,7 @@ const clap = @import("clap");
 
 const Setup = @import("./commands/setup.zig");
 const Grab = @import("./commands/grab.zig");
+const LocalBuilder = @import("./commands/build.zig");
 
 const debug = std.debug;
 const io = std.io;
@@ -24,6 +25,8 @@ pub fn main() !void {
         \\-s, --setup                       Perform a new scaffolding of the hoshi formulas repository
         \\-c, --clean                       Clean the last formulas repository archive before re cloning it
         \\-g, --grab <str>...               Build from source and install the desired packages
+        \\-b, --build <str>...              Build the specified packages locally
+        \\-I, --import <str>...             Import a given .hoshi file into the hoshi packages registry
         \\-r, --rootfs <str>                The root filesystem where the packages should get merged at
         \\
     );
@@ -72,5 +75,11 @@ pub fn main() !void {
         var grab = try Grab.new(gpa.allocator(), &res.args.grab, &res.args.rootfs);
         defer grab.deinit();
         try grab.run();
+    }
+
+    if (res.args.build.len > 0) {
+        var builder = try LocalBuilder.new(gpa.allocator(), &res.args.build);
+        defer builder.deinit();
+        try builder.run();
     }
 }
