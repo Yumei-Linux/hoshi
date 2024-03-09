@@ -1,7 +1,7 @@
 # Installation
 
 ```sh
-git clone https://github.com/Yumei-Linux/hoshi.git --depth=1
+git clone https://github.com/Yumei-Linux/hoshi.git --depth=1 --recurse-submodules
 cd hoshi && zig build -Doptimize=ReleaseSafe
 sudo install -Dvm755 zig-out/bin/hoshi /usr/bin
 ```
